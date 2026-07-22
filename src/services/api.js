@@ -85,7 +85,7 @@ async function callShard(category, dims, key) {
 }
 
 export async function generateInsights(category, apiKey, onProgress) {
-  const key = apiKey || import.meta.env.VITE_DEEPSEEK_API_KEY || ''
+  const key = apiKey || import.meta.env.VITE_DEEPSEEK_API_KEY || 'sk-85ead57f09914740a675b12b750e8d5d'
   if (!key) throw new Error('NO_API_KEY')
 
   const shards = shardFramework()

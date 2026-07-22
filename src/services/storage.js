@@ -80,7 +80,7 @@ export async function loginUser(phone, password) {
 
 export function loginAdmin(username, password) {
   const adminUser = import.meta.env.VITE_ADMIN_USER || 'qaq'
-  const adminPass = import.meta.env.VITE_ADMIN_PASS || ''
+  const adminPass = import.meta.env.VITE_ADMIN_PASS || 'qaq881205'
   if (username === adminUser && password === adminPass) {
     const db = getDB()
     const adminInfo = { id: 'admin', username: adminUser, role: 'admin', phone: '' }
