@@ -56,6 +56,17 @@ export default function LoginPage() {
       </div>
 
       <div className="relative w-full max-w-md">
+        {/* Migration Banner */}
+        <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
+          <p className="text-amber-300 text-sm font-medium">📢 系统已迁移至长期地址</p>
+          <p className="text-amber-400/70 text-xs mt-1 break-all font-mono">
+            procurement-insights.onrender.com
+          </p>
+          <p className="text-slate-500 text-xs mt-1.5">
+            请收藏新地址，当前访问的旧链接即将失效
+          </p>
+        </div>
+
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/20">

@@ -291,7 +291,14 @@ function LandingPage({ user, onSearch, onDemo, onLogout, loading }) {
       </div>
 
       {/* Hero */}
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+        <div className="flex-1 flex flex-col items-center justify-center px-4 py-12">
+        {/* Migration Banner - compact */}
+        <div className="w-full max-w-xl mb-6 px-4 py-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center">
+          <p className="text-amber-400/80 text-xs">
+            📢 系统长期地址：<span className="font-mono text-amber-300">procurement-insights.onrender.com</span> · 请收藏
+          </p>
+        </div>
+
         <div className="text-center mb-10 animate-fade-in">
           <h1 className="text-4xl md:text-6xl font-bold gradient-text mb-3">
             采购品类洞察

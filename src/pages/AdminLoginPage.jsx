@@ -24,6 +24,17 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-gradient-to-br from-ink-900 via-slate-900 to-ink-800">
       <div className="w-full max-w-sm">
+        {/* Migration Banner */}
+        <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-center">
+          <p className="text-amber-300 text-sm font-medium">📢 系统已迁移至长期地址</p>
+          <p className="text-amber-400/70 text-xs mt-1 break-all font-mono">
+            procurement-insights.onrender.com
+          </p>
+          <p className="text-slate-500 text-xs mt-1.5">
+            请收藏新地址，当前访问的旧链接即将失效
+          </p>
+        </div>
+
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl mb-4">
             <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
