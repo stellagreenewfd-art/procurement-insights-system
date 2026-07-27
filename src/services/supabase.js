@@ -26,6 +26,7 @@ export async function sbRegisterUser({ phone, username, password, company, indus
   const client = getClient()
   if (!client) return null
   const id = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8)
+  console.log('[Supabase] 注册用户:', { id, phone, username, company, industry })
   const { error } = await client.from('users').insert({
     id, phone, username, password, company, industry,
     role: 'user',
@@ -34,9 +35,10 @@ export async function sbRegisterUser({ phone, username, password, company, indus
   })
   if (error) {
     if (error.code === '23505') return { ok: false, msg: '该手机号已注册' }
-    console.error('Supabase register error:', error)
-    return { ok: false, msg: '注册失败' }
+    console.error('[Supabase] 注册失败:', error.message, error.details, error.hint)
+    return { ok: false, msg: '注册失败: ' + (error.message || '未知错误') }
   }
+  console.log('[Supabase] 注册成功:', username)
   return { ok: true, user: { id, phone, username, company, industry, role: 'user' } }
 }
 
@@ -55,7 +57,12 @@ export async function sbLoginUser(phone, password) {
 export async function sbGetAllUsers() {
   const client = getClient()
   if (!client) return []
-  const { data } = await client.from('users').select('*').order('createdAt', { ascending: false })
+  const { data, error } = await client.from('users').select('*').order('createdAt', { ascending: false })
+  if (error) {
+    console.error('[Supabase] 获取用户列表失败:', error.message)
+    return []
+  }
+  console.log('[Supabase] 获取用户列表:', data?.length || 0, '条')
   return data || []
 }
 

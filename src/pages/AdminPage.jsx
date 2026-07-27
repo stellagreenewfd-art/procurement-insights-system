@@ -13,16 +13,26 @@ export default function AdminPage() {
   const [users, setUsers] = useState([])
   const [history, setHistory] = useState([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      setDataLoading(true)
+  async function loadData() {
+    setDataLoading(true)
+    setLoadError('')
+    try {
       const [u, h] = await Promise.all([getAllUsers(), getAllSearchHistory()])
       setUsers(u)
       setHistory(h)
+      console.log(`[Admin] 加载完成: ${u.length} 用户, ${h.length} 条搜索记录`)
+    } catch (err) {
+      console.error('[Admin] 数据加载失败:', err)
+      setLoadError(err.message || '数据加载失败，请刷新重试')
+    } finally {
       setDataLoading(false)
     }
-    load()
+  }
+
+  useEffect(() => {
+    loadData()
   }, [])
 
   const filteredUsers = useMemo(() => {
@@ -95,10 +105,48 @@ export default function AdminPage() {
           >
             退出登录
           </button>
+          <button
+            onClick={loadData}
+            disabled={dataLoading}
+            className="px-4 py-2 bg-ink-700 hover:bg-ink-600 text-slate-300 rounded-lg text-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+          >
+            <svg className={`w-4 h-4 ${dataLoading ? 'animate-spin' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            {dataLoading ? '刷新中...' : '刷新数据'}
+          </button>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+        {/* Loading State */}
+        {dataLoading && (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-10 h-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-400 text-sm">正在加载数据...</p>
+            <p className="text-slate-600 text-xs mt-1">从 Supabase 共享数据库同步</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {!dataLoading && loadError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-6 text-center">
+            <svg className="w-10 h-10 text-red-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <p className="text-red-400 font-medium mb-1">数据加载失败</p>
+            <p className="text-red-400/70 text-sm mb-4">{loadError}</p>
+            <button
+              onClick={loadData}
+              className="px-5 py-2.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl text-sm transition-colors"
+            >
+              点击重试
+            </button>
+          </div>
+        )}
+
+        {/* Content */}
+        {!dataLoading && !loadError && (<>
         {/* Tab Nav */}
         <div className="flex gap-1 mb-6 p-1 bg-ink-800/50 rounded-xl w-fit">
           {[
@@ -296,6 +344,8 @@ export default function AdminPage() {
               )}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

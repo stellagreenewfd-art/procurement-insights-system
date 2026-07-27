@@ -1,138 +1,74 @@
 /**
- * API 调用层 — 分片并行：3组×4维度并行调用，每组 ~15s，总耗时不超 20s
- * type hint schema + json_object 保证内容质量
+ * API 调用层 v3 — 后端代理模式
+ * 所有 DeepSeek API 调用走服务端 /api/search，API Key 不暴露前端
+ * 框架定义保留用于 DimensionCard 渲染，实际分析由后端完成
  */
 import { framework } from '../data/framework.js'
 
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions'
-const SHARD_TIMEOUT = 35000
+const API_BASE = '/api/search'
+const REQUEST_TIMEOUT = 60000 // 60秒超时（后端处理3个shard）
 
-function shardFramework() {
-  const groups = [[], [], []]
-  framework.forEach((dim, i) => groups[i % 3].push(dim))
-  return groups
-}
+/**
+ * 生成采购品类洞察报告
+ * @param {string} category - 品类名称
+ * @param {string} apiKey - 已废弃（v3不再需要前端传key）
+ * @param {function} onProgress - 进度回调
+ */
+export async function generateInsights(category, apiKey, onProgress) {
+  if (!category || !category.trim()) {
+    throw new Error('请提供品类名称')
+  }
 
-function buildShardPrompt(dims) {
-  const schemas = dims.map(dim => {
-    const fields = dim.fields.map(f => {
-      let t
-      switch (f.type) {
-        case 'text': t = 'string'; break
-        case 'tags': case 'list': t = 'string[]'; break
-        case 'keyvalue': t = 'object'; break
-        case 'table': t = `object[${f.columns?.join(',')}]`; break
-        case 'formula': t = 'string'; break
-        case 'chart': t = '{labels,series[{name,color,data}],unit}'; break
-        default: t = 'string'
-      }
-      return `"${f.key}":${t}`
-    }).join(',')
-    return `"${dim.id}":{${fields}}`
-  }).join(',')
+  if (onProgress) onProgress('正在连接分析服务器...')
+  if (onProgress) onProgress('AI并行分析中，预计15-25秒...')
 
-  return `资深采购总监。输出纯JSON：{"dimensions":{${schemas}}}。每字段填真实数据（带数字），表格至少2行。数据2025-2026。`
-}
-
-async function callShard(category, dims, key) {
   const controller = new AbortController()
-  const tid = setTimeout(() => controller.abort(), SHARD_TIMEOUT)
+  const tid = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
 
   try {
-    const response = await fetch(DEEPSEEK_API_URL, {
+    const response = await fetch(API_BASE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: 'deepseek-chat',
-        messages: [
-          { role: 'system', content: buildShardPrompt(dims) },
-          { role: 'user', content: `分析品类「${category}」的${dims.map(d => d.title).join('、')}。每字段至少2句带数字。纯JSON。` },
-        ],
-        temperature: 0.3,
-        max_tokens: 4500,
-        response_format: { type: 'json_object' },
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ category: category.trim() }),
       signal: controller.signal,
     })
 
     clearTimeout(tid)
 
+    if (response.status === 429) {
+      const data = await response.json().catch(() => ({}))
+      throw new Error('RATE:' + (data.msg || '请求过于频繁，请稍后再试'))
+    }
+
+    if (response.status === 401) {
+      throw new Error('KEY')
+    }
+
     if (!response.ok) {
-      if (response.status === 401) throw new Error('KEY')
-      if (response.status === 429) throw new Error('RATE')
-      throw new Error('HTTP')
+      const data = await response.json().catch(() => ({}))
+      throw new Error(data.error || `服务器错误 (${response.status})`)
     }
 
     const data = await response.json()
-    const content = data.choices?.[0]?.message?.content
-    if (!content) throw new Error('EMPTY')
-
-    let result
-    try { result = JSON.parse(content) } catch {
-      const m = content.match(/\{[\s\S]*\}/)
-      result = m ? JSON.parse(m[0]) : {}
+    if (!data.success || !data.data) {
+      throw new Error('分析结果异常，请重试')
     }
 
-    return result.dimensions || {}
+    if (onProgress) onProgress('正在合并分析结果...')
+    if (onProgress) onProgress('分析完成，正在渲染报告...')
+
+    // 构建与之前兼容的返回格式
+    const result = {
+      category: data.data.category,
+      generatedAt: data.data.generatedAt,
+      dimensions: data.data.dimensions || {},
+    }
+    return result
+
   } catch (err) {
     clearTimeout(tid)
     if (err.name === 'AbortError') throw new Error('TIMEOUT')
+    if (err.message?.startsWith('RATE:')) throw err
     throw err
   }
-}
-
-export async function generateInsights(category, apiKey, onProgress) {
-  const key = apiKey || import.meta.env.VITE_DEEPSEEK_API_KEY || 'sk-85ead57f09914740a675b12b750e8d5d'
-  if (!key) throw new Error('NO_API_KEY')
-
-  const shards = shardFramework()
-
-  if (onProgress) onProgress('正在初始化分析引擎（3组并行）...')
-  if (onProgress) onProgress('AI并行分析中，预计15-25秒...')
-
-  const results = await Promise.allSettled(
-    shards.map(dims => callShard(category, dims, key))
-  )
-
-  // 合并
-  let allDimensions = {}
-  let ok = 0
-
-  results.forEach((r, i) => {
-    if (r.status === 'fulfilled') {
-      Object.assign(allDimensions, r.value)
-      ok++
-    } else {
-      shards[i].forEach(dim => {
-        allDimensions[dim.id] = {}
-        dim.fields.forEach(f => {
-          allDimensions[dim.id][f.key] = f.type === 'list' || f.type === 'tags' || f.type === 'table' ? [] : f.type === 'keyvalue' ? {} : f.type === 'chart' ? { labels: [], series: [], unit: '' } : ''
-        })
-      })
-    }
-  })
-
-  if (ok === 0) throw new Error('所有分析请求均失败（网络或API异常），请检查网络后重试')
-
-  if (onProgress) onProgress('正在合并分析结果...')
-
-  const result = {
-    category,
-    generatedAt: new Date().toLocaleDateString('zh-CN'),
-    dimensions: {}
-  }
-
-  framework.forEach(dim => {
-    result.dimensions[dim.id] = {}
-    dim.fields.forEach(field => {
-      const val = allDimensions[dim.id]?.[field.key]
-      result.dimensions[dim.id][field.key] = val !== undefined && val !== null ? val : (field.type === 'list' || field.type === 'tags' || field.type === 'table' ? [] : field.type === 'keyvalue' ? {} : field.type === 'chart' ? { labels: [], series: [], unit: '' } : '')
-    })
-  })
-
-  if (onProgress) onProgress('分析完成，正在渲染报告...')
-  return result
 }
