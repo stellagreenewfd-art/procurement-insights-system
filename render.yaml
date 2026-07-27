@@ -1,12 +1,13 @@
 services:
   - type: web
     name: procurement-insights
-    env: node
-    plan: free
+    env: static
     buildCommand: npm install && npm run build
-    startCommand: node server.cjs
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
     envVars:
       - key: NODE_VERSION
         value: 22.22.2
-      - key: DEEPSEEK_API_KEY
-        sync: false
